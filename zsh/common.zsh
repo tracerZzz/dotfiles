@@ -30,6 +30,15 @@ esac
 _dotfiles_add_path "$HOME/.local/bin"
 _dotfiles_add_path "$HOME/go/bin"
 
+# Optional goenv version manager (auto-enabled only if installed)
+if [[ -d "$HOME/.goenv" ]]; then
+  export GOENV_ROOT="$HOME/.goenv"
+  _dotfiles_add_path "$GOENV_ROOT/bin"
+fi
+if (( $+commands[goenv] )); then
+  eval "$(goenv init -)"
+fi
+
 unset -f _dotfiles_add_path
 
 # Quick Shell & iTerm2 cheatsheet (pretty rendered)

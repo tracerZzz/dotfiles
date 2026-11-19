@@ -18,11 +18,15 @@
 
 ---
 
-## 2. 跨平台兼容约束（macOS & Linux）
+## 2. 跨平台与前置安装检查约束
 
 - **自动区分系统**：`zsh/common.zsh` 必须通过 `uname -s` 区分 `Darwin` 与 `Linux`，严禁在 Linux 下强依赖 Homebrew、iTerm2 或 macOS 专属命令（如 `pbcopy`、`open`）。
 - **平台资产隔离**：仅限 macOS 的配置文件必须放在 `macos/` 目录下（如 `macos/iterm2/`），不影响 Linux 接入。
 - **Vim 跨平台保护**：系统剪贴板等特性必须加 `has('clipboard')` 等特性检测，兼容 Linux 精简版 Vim。
+- **必备前置 vs 可选项处理规范（AI 部署时必须遵守）**：
+  - **必备前置**（如 `zsh`、`curl`、`python3`、`oh-my-zsh`，以及 macOS 下的 `Homebrew`）：部署前先检查，若缺失则自动安装或明确提醒用户安装；涉及本机身份配置（如 `git config` 用户名/邮箱）时，只提醒用户手动输入，绝不硬编码或写入本仓库。
+  - **非必备可选项**（如 **GitHub 登录鉴权**、`autojump`、`ripgrep`、`vim-plug`、iTerm2、`goenv` + Go）：部署前**必须先询问用户是否需要安装**，按需跳过，不要擅自全部安装。
+  - **外网 Linux VPS 安全红线**：不要在公网/临时 VPS 上配置个人 GitHub SSH 私钥或登录 `gh`，优先提示用户从本地 Mac 通过 `rsync --exclude='.git'` 单向推送 `~/dotfiles`。
 
 ---
 

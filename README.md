@@ -1,8 +1,9 @@
 # dotfiles — macOS & Linux 通用终端、Vim 环境配置
 
 本仓库采用**「非侵入式一行引用 + 跨平台自动识别」**设计：
-- **不覆盖宿主机原有的 `~/.zshrc` 和 `~/.vimrc`**，在个人 Mac、公司电脑或 Linux 服务器上都只需追加一行 `source`。
-- **自动区分 macOS 与 Linux**：Linux 不安装 Homebrew、不安装 iTerm2；无插件环境（如临时服务器）也能零报错直接使用基础 Vim。
+- **不覆盖宿主机原有的 `~/.zshrc` 和 `~/.vimrc`**，在个人 Mac、公司电脑或 Linux VPS 上都只需追加一行 `source`。
+- **自动区分 macOS 与 Linux**：Linux 不安装 Homebrew、不安装 iTerm2；无插件环境也能零报错直接使用基础 Vim。
+- **不强制在每台机器登录 GitHub**：外网 Linux VPS 可直接从本地 Mac `rsync` 同步，避免私钥或 Token 泄漏。
 
 > 维护与脱敏规范、AI 自动操作约束请见 [AGENTS.md](./AGENTS.md)。
 
@@ -12,10 +13,10 @@
 
 ```text
 dotfiles/
-├── README.md                  # 本说明、前置依赖与 macOS / Linux 接入指南
-├── AGENTS.md                  # 写给 AI 的约束、脱敏与维护规范
+├── README.md                  # 本说明、依赖分层与 macOS / Linux 接入指南
+├── AGENTS.md                  # 写给 AI 的约束、前置检查与脱敏规范
 ├── zsh/
-│   ├── common.zsh             # 跨平台通用 Zsh 配置（自动区分 macOS / Linux）
+│   ├── common.zsh             # 跨平台通用 Zsh 配置（自动区分 macOS/Linux，含 goenv 自动集成）
 │   └── p10k.zsh               # Powerlevel10k 提示符样式
 ├── vim/
 │   └── common.vim             # 跨平台轻量 Vim 配置（5 插件 + 透明配色 + :hh 速查）
@@ -30,46 +31,56 @@ dotfiles/
 
 ---
 
-## 前置依赖清单（按顺序准备）
+## 依赖分层（必备前置 vs 可选按需）
 
-| 阶段 | 依赖项 | macOS | Linux（Ubuntu / CentOS） | 说明 |
+| 类别 | 依赖项 | macOS | Linux / VPS | 是否必备 |
 | :--- | :--- | :--- | :--- | :--- |
-| **0. 拉取仓库前** | `git` + GitHub 鉴权 | Xcode CLT 自带 `git` | `apt/yum install git` | 私有仓库需先配 SSH Key、HTTPS Token 或 `gh auth login`（账号与私钥不进仓库） |
-| **1. 包管理器** | 系统包管理 | **安装 Homebrew** | 系统自带 `apt` / `dnf` / `yum` | **Linux 无需安装 Homebrew** |
-| **2. 核心运行时** | `zsh`、`oh-my-zsh`、`curl`、`python3` | 自带 `zsh/curl/python3`，装 Oh My Zsh | 安装 `zsh`、`curl`、`python3` + Oh My Zsh | `python3` 用于 `hh` / `:hh` 速查表渲染 |
-| **3. 可选增强** | `autojump`、`ripgrep`、`vim-plug` | `brew install`（或免 `sudo` 手动装） | `apt/yum install`（或免 `sudo` 手动装） | 未安装时自动优雅降级，不报错 |
-| **4. 仅 macOS** | `iTerm2`、`MesloLGS NF` 字体 | `brew install --cask` | **不需要** | SSH 连 Linux 时由本地 Mac 的 iTerm2 负责显示 |
+| **必备前置** | `zsh`、`curl`、`python3`、`oh-my-zsh` | 前三项系统自带，需装 Oh My Zsh | `apt/yum` 安装 + Oh My Zsh | **必备**（`python3` 用于 `hh` / `:hh` 渲染） |
+| **必备前置（仅 macOS）** | `Homebrew` | 需安装 | **不需要** | macOS 必备 / Linux 跳过 |
+| **按需前置** | `git` 命令行（无需登录账号） | Xcode CLT 自带 | `apt/yum install git` | 仅克隆公开插件时需要，**无需登录 GitHub** |
+| **可选（非必备）** | **GitHub 登录鉴权**（SSH Key / `gh`） | 仅常用开发机按需配置 | **外网 VPS 强烈建议不登录！** | 可选（不登录时用下方 `rsync` 同步） |
+| **可选（非必备）** | `autojump`、`ripgrep`、`vim-plug` | 按需安装 | 按需安装 | 可选（未装时自动优雅降级，不报错） |
+| **可选（仅 macOS）** | `iTerm2`、`MesloLGS NF` 字体 | `brew install --cask` | **不需要** | 仅 macOS 可选 |
+| **可选（语言模块）** | `goenv` + Go | 按需安装 | 按需安装 | 仅需 Go 开发的机器安装 |
 
-### 步骤 0：新机器 Git 基础初始化（按当前机器身份填写）
+---
+
+## 获取本仓库到目标机器（两种方式任选）
+
+### 方式 1：常用个人/开发机（配置 GitHub 鉴权后 clone）
 ```zsh
+# 如需在本机提交代码，先按当前机器身份配置 Git（不要写入 dotfiles）
 git config --global user.name "<你的名字>"
 git config --global user.email "<对应机器的邮箱>"
-```
-完成 GitHub SSH Key 配置（或 `gh auth login`）后克隆本仓库：
-```zsh
+
+# 配置 SSH Key（或 gh auth login）后克隆
 git clone git@github.com:tracerZzz/dotfiles.git ~/dotfiles
-# 无 SSH Key 时可用 HTTPS：
-# git clone https://github.com/tracerZzz/dotfiles.git ~/dotfiles
+```
+
+### 方式 2：外网 Linux VPS / 不想登录 GitHub 的机器（推荐，零凭证泄漏）
+在**本地 Mac** 上直接同步配置目录到目标服务器（自动排除 `.git` 目录，不留任何账号信息）：
+```zsh
+rsync -avz --exclude='.git' ~/dotfiles/ <user>@<vps-ip>:~/dotfiles/
 ```
 
 ---
 
 ## 接入路径 A：macOS 完整接入
 
-### 1. 安装基础软件（Homebrew、iTerm2、字体、Oh My Zsh、autojump）
+### 1. 安装必备前置与可选软件
 ```zsh
-# 安装 Homebrew（如未安装）
+# 必备：Homebrew（如未安装）
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# 安装 iTerm2 与 Nerd Font 字体
+# 可选：iTerm2 与 Nerd Font 字体
 brew install --cask iterm2 font-meslo-lg-nerd-font
 
-# 安装 autojump（若无 /usr/local 写权限，可改用 wting/autojump 的 python3 install.py 装到 ~/.autojump）
+# 可选：autojump（若无系统目录写权限，可用 wting/autojump 的 python3 install.py 装到 ~/.autojump）
 brew install autojump
 ```
 *(如未安装 Oh My Zsh，按官方命令安装即可。)*
 
-### 2. 安装 Powerlevel10k 与 Zsh 第三方插件
+### 2. 安装 Powerlevel10k 与 Zsh 第三方插件（公开仓库，无需登录 GitHub）
 ```zsh
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
@@ -82,7 +93,7 @@ git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "${
 echo '[[ -f "$HOME/dotfiles/zsh/common.zsh" ]] && source "$HOME/dotfiles/zsh/common.zsh"' >> ~/.zshrc
 source ~/.zshrc
 
-# Vim（安装 vim-plug + 追加一行引用 + 安装 5 个轻量插件）
+# Vim（可选：安装 vim-plug + 追加一行引用 + 安装 5 个轻量插件）
 curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 echo "if filereadable(expand('~/dotfiles/vim/common.vim')) | source ~/dotfiles/vim/common.vim | endif" >> ~/.vimrc
 vim +PlugInstall +qall
@@ -94,19 +105,20 @@ vim +PlugInstall +qall
 
 ---
 
-## 接入路径 B：Linux / 远程服务器精简接入
+## 接入路径 B：Linux / 外网 VPS 精简接入
 
-*(无需 Homebrew、无需 iTerm2、无需装字体)*
+*(无需 Homebrew、无需 iTerm2、无需装字体、无需登录 GitHub)*
 
-### 1. 安装基础依赖（以 Ubuntu/Debian 为例，CentOS/RHEL 替换为 `yum`/`dnf`）
+### 1. 安装必备基础环境（以 Ubuntu/Debian 为例，CentOS/RHEL 替换为 `yum`/`dnf`）
 ```bash
-sudo apt update && sudo apt install -y git zsh curl python3 autojump
+sudo apt update && sudo apt install -y git zsh curl python3
+# 可选：sudo apt install -y autojump ripgrep
 chsh -s "$(which zsh)"
 # 安装 Oh My Zsh
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 ```
 
-### 2. 安装 Powerlevel10k 与 Zsh 插件 + 一行引用
+### 2. 安装 Zsh 主题与插件 + 一行引用
 ```zsh
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
@@ -116,27 +128,35 @@ echo '[[ -f "$HOME/dotfiles/zsh/common.zsh" ]] && source "$HOME/dotfiles/zsh/com
 source ~/.zshrc
 ```
 
-### 3. 接入 Vim
-- **完整版（开发机）**：同 macOS 第 3 步安装 `vim-plug` + 一行引用 + `vim +PlugInstall +qall`。
-- **极简免插件版（临时/生产服务器）**：直接把 `vim/common.vim` 复制为 `~/.vimrc` 即可零报错使用全部原生基础体验。
+### 3. 接入 Vim（二选一）
+- **插件版（常用开发机）**：同 macOS 第 3 步安装 `vim-plug` + 追加一行引用 + `vim +PlugInstall +qall`。
+- **零插件极简版（外网 VPS / 临时服务器）**：只需追加一行引用（不装 `vim-plug`），即可零报错使用全部原生基础编辑体验。
 
 ---
 
-## 可选模块：安装 Go 环境（仅需 Go 开发的机器）
+## 可选模块：Go 环境（使用 `goenv` 管理版本）
 
-`zsh/common.zsh` 已自动将 `/usr/local/go/bin`（Linux）和 `$HOME/go/bin` 加入 `PATH`（检测到目录存在即生效）。
+`zsh/common.zsh` 已内置 `goenv` 自动初始化（检测到 `~/.goenv` 或 `goenv` 命令时自动生效，未安装时零开销）。
 
+### 1. 安装 `goenv`
 - **macOS**：
   ```zsh
-  brew install go
+  brew install goenv
   ```
-- **Linux（官方二进制包，推荐）**：
-  前往 [go.dev/dl](https://go.dev/dl/) 获取最新版本号后解压至 `/usr/local/go`：
-  ```bash
-  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go<版本号>.linux-amd64.tar.gz
+- **Linux**：
+  ```zsh
+  git clone --depth=1 https://github.com/go-nv/goenv.git ~/.goenv
   ```
-- **多版本管理（可选）**：如需切换多个 Go 版本，可按个人习惯使用 `gvm` / `g`（`voidint/g`） / `goenv` / `asdf`。
-- **注意**：公司或个人专属的 `GOPROXY`、`GOPRIVATE` 请写在宿主机自己的 `~/.zshrc` 中，不要提交到本仓库。
+
+### 2. 刷新 Shell 并安装指定 Go 版本
+```zsh
+source ~/.zshrc
+goenv install -l             # 查看可安装的 Go 版本列表
+goenv install <版本号>        # 例如：goenv install 1.24.0
+goenv global <版本号>         # 设为全局默认版本
+go version                   # 验证
+```
+> 注意：公司或个人专属的 `GOPROXY`、`GOPRIVATE` 请写在宿主机自己的 `~/.zshrc` 中，不要提交到本仓库。
 
 ---
 
@@ -144,4 +164,4 @@ source ~/.zshrc
 
 - **Shell 速查**：终端敲 **`hh`**
 - **Vim 速查**：Vim 内敲 **`:hh`**（或 `\?`），按 `q` 关闭
-- **拉取最新配置**：`git -C ~/dotfiles pull`
+- **更新配置**：已 clone 仓库的机器执行 `git -C ~/dotfiles pull`；外网 VPS 从本地 Mac 重新 `rsync` 即可。
