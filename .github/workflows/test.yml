@@ -96,6 +96,7 @@ jobs:
         run: apt-get install -y zsh curl python3 vim
 
       - name: Run minimal VPS install (no Vim plugins, no goenv, no autojump)
+        shell: bash
         env:
           DOTFILES_NONINTERACTIVE: "1"
           DOTFILES_OPT_PULL: "n"
