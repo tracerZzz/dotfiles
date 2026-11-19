@@ -21,22 +21,28 @@ case "$(uname -s)" in
     fi
     ;;
   Linux)
-    # Standard official Go tarball path on Linux
+    # Standard official Go tarball path on Linux (if installed without goenv)
     _dotfiles_add_path "/usr/local/go/bin"
     ;;
 esac
 
-# User local binaries & Go user binaries (auto-enabled when present)
+# User local binaries
 _dotfiles_add_path "$HOME/.local/bin"
-_dotfiles_add_path "$HOME/go/bin"
 
-# Optional goenv version manager (auto-enabled only if installed)
+# Optional goenv version manager (Option A: shared GOPATH=$HOME/go across versions)
 if [[ -d "$HOME/.goenv" ]]; then
   export GOENV_ROOT="$HOME/.goenv"
+  export GOENV_DISABLE_GOPATH=1
   _dotfiles_add_path "$GOENV_ROOT/bin"
 fi
 if (( $+commands[goenv] )); then
   eval "$(goenv init -)"
+  export GOPATH="${GOPATH:-$HOME/go}"
+  [[ -n "${GOROOT:-}" ]] && _dotfiles_add_path "$GOROOT/bin"
+  _dotfiles_add_path "$GOPATH/bin"
+else
+  # Fallback Go user binaries when Go is installed without goenv
+  _dotfiles_add_path "$HOME/go/bin"
 fi
 
 unset -f _dotfiles_add_path

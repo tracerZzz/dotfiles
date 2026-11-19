@@ -1,0 +1,236 @@
+name: Dotfiles CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint-and-security:
+    name: Lint, Render & Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zsh and shellcheck
+        run: sudo apt-get update && sudo apt-get install -y zsh shellcheck
+
+      - name: Syntax check shell and Python scripts
+        run: |
+          bash -n install.sh
+          shellcheck -S warning install.sh
+          zsh -n zsh/common.zsh
+          python3 -m py_compile scripts/vh.py
+
+      - name: Validate cheatsheet renderer (ANSI & plain modes)
+        run: |
+          python3 - <<'EOF'
+          import subprocess, sys
+
+          # 1. Plain mode must contain ZERO ANSI escape sequences
+          for sheet in ("cheatsheets/shell.md", "cheatsheets/vim.md"):
+              out = subprocess.check_output(["python3", "scripts/vh.py", "--plain", sheet], text=True)
+              assert "\033[" not in out, f"ANSI escape leaked in --plain mode for {sheet}"
+              assert len(out.splitlines()) > 30, f"Unexpectedly short output for {sheet}"
+
+          # 2. Escaped pipe \| in markdown table must be unescaped cleanly
+          shell_out = subprocess.check_output(["python3", "scripts/vh.py", "--plain", "cheatsheets/shell.md"], text=True)
+          assert "cat a.txt | pbcopy" in shell_out, "Escaped pipe was not rendered cleanly"
+
+          # 3. Color mode should include ANSI codes
+          color_out = subprocess.check_output(["python3", "scripts/vh.py", "cheatsheets/shell.md"], text=True)
+          assert "\033[" in color_out, "Expected ANSI colors in default mode"
+          print("Cheatsheet renderer assertions passed.")
+          EOF
+
+      - name: Validate iTerm2 plist XML and sanitization
+        run: |
+          python3 - <<'EOF'
+          import plistlib
+
+          path = "macos/iterm2/com.googlecode.iterm2.plist"
+          with open(path, "rb") as f:
+              p = plistlib.load(f)
+
+          forbidden_prefixes = ("NoSync", "NSNav", "NSWindow Frame", "NSSplitView", "NSToolbar", "SU")
+          bad_keys = [k for k in p.keys() if k.startswith(forbidden_prefixes)]
+          assert not bad_keys, f"Unsanitized plist keys found: {bad_keys}"
+
+          for bm in p.get("New Bookmarks", []):
+              wd = str(bm.get("Working Directory", ""))
+              assert "/Users/" not in wd and "/home/" not in wd, f"Hardcoded Working Directory: {wd}"
+
+          print("iTerm2 plist sanitization assertions passed.")
+          EOF
+
+      - name: Privacy and secret leak guard (Public repo)
+        run: |
+          if grep -rnE "(zhang|MacBook|password|secret|api_key|apikey|192\.168\.|10\.[0-9]+\.|172\.(1[6-9]|2[0-9]|3[01])\.|GOPRIVATE=)" \
+            --exclude-dir=.git --exclude-dir=.github .; then
+            echo "ERROR: Potential personal/sensitive info detected!"
+            exit 1
+          fi
+          echo "Privacy scan clean."
+
+  test-debian-vps:
+    name: Minimal Debian VPS (debian:bookworm)
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm
+    steps:
+      - name: Install git for checkout
+        run: apt-get update && apt-get install -y git ca-certificates
+
+      - uses: actions/checkout@v4
+
+      - name: Assert missing prerequisite detection fails cleanly before deps installed
+        run: |
+          if DOTFILES_NONINTERACTIVE=1 bash install.sh; then
+            echo "ERROR: Expected install.sh to fail when zsh/curl/python3 are missing"
+            exit 1
+          fi
+          echo "Missing prerequisite detection passed."
+
+      - name: Install minimal Debian VPS prerequisites (no Homebrew, no iTerm2)
+        run: apt-get install -y zsh curl python3 vim
+
+      - name: Run minimal VPS install (no Vim plugins, no goenv, no autojump)
+        env:
+          DOTFILES_NONINTERACTIVE: "1"
+          DOTFILES_OPT_PULL: "n"
+          DOTFILES_OPT_OMZ: "y"
+          DOTFILES_OPT_ZSH_PLUGINS: "y"
+          DOTFILES_OPT_ZSH_HOOK: "y"
+          DOTFILES_OPT_VIM_HOOK: "y"
+          DOTFILES_OPT_VIM_PLUGINS: "n"
+          DOTFILES_OPT_AUTOJUMP: "n"
+          DOTFILES_OPT_GOENV: "n"
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE" "$HOME/dotfiles"
+          # Seed simulated existing host config
+          printf 'export VPS_HOST_MARKER="keep_me"\n' > "$HOME/.zshrc"
+          printf '" VPS_VIM_MARKER\n' > "$HOME/.vimrc"
+
+          bash "$HOME/dotfiles/install.sh"
+          # Run second time to verify idempotency
+          bash "$HOME/dotfiles/install.sh"
+
+          # Assert host config preserved and hooks added strictly once
+          grep -Fq 'VPS_HOST_MARKER="keep_me"' "$HOME/.zshrc"
+          grep -Fq 'VPS_VIM_MARKER' "$HOME/.vimrc"
+          [[ "$(grep -Fc 'dotfiles/zsh/common.zsh' "$HOME/.zshrc")" -eq 1 ]]
+          [[ "$(grep -Fc 'dotfiles/vim/common.vim' "$HOME/.vimrc")" -eq 1 ]]
+
+          # Assert zsh starts cleanly on Debian without Homebrew
+          zsh -ic '
+            [[ -n "$DOTFILES_DIR" ]] || exit 11
+            alias hh >/dev/null || exit 12
+            typeset -f _zsh_autosuggest_start >/dev/null || exit 13
+            typeset -f _zsh_highlight >/dev/null || exit 14
+            echo "DEBIAN_ZSH_OK"
+          '
+
+          # Assert zero-plugin Vim starts cleanly and :HH renders cheatsheet
+          vim -Nu "$HOME/.vimrc" -es \
+            -c 'HH' \
+            -c 'if line("$") < 50 || !empty(v:errmsg) | cquit 1 | endif' \
+            -c 'qa!'
+          echo "DEBIAN_MINIMAL_VIM_OK"
+
+  test-full-install:
+    name: Full Install (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure zsh and vim on Ubuntu
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh vim
+
+      - name: Run full install twice (non-invasive + idempotency + goenv)
+        env:
+          DOTFILES_NONINTERACTIVE: "1"
+          DOTFILES_OPT_PULL: "n"
+          DOTFILES_OPT_OMZ: "y"
+          DOTFILES_OPT_ZSH_PLUGINS: "y"
+          DOTFILES_OPT_ZSH_HOOK: "y"
+          DOTFILES_OPT_VIM_HOOK: "y"
+          DOTFILES_OPT_VIM_PLUGINS: "y"
+          DOTFILES_OPT_AUTOJUMP: "y"
+          DOTFILES_OPT_GOENV: "y"
+          DOTFILES_OPT_GO_INSTALL: "n"
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE" "$HOME/dotfiles"
+          # Seed simulated company config
+          printf 'export COMPANY_PROXY="http://corp.example"\n' > "$HOME/.zshrc"
+          printf '" COMPANY_VIM_SETTING\n' > "$HOME/.vimrc"
+
+          bash "$HOME/dotfiles/install.sh"
+          # Run twice to assert strict idempotency
+          bash "$HOME/dotfiles/install.sh"
+
+          # 1. Host configs preserved & hooks strictly once
+          grep -Fq 'COMPANY_PROXY="http://corp.example"' "$HOME/.zshrc"
+          grep -Fq 'COMPANY_VIM_SETTING' "$HOME/.vimrc"
+          [[ "$(grep -Fc 'dotfiles/zsh/common.zsh' "$HOME/.zshrc")" -eq 1 ]]
+          [[ "$(grep -Fc 'dotfiles/vim/common.vim' "$HOME/.vimrc")" -eq 1 ]]
+
+          # 2. Zsh runtime verification (plugins, autojump, goenv Option A, no duplicate PATH)
+          zsh -ic '
+            [[ -n "$DOTFILES_DIR" ]] || exit 21
+            alias hh >/dev/null || exit 22
+            typeset -f j >/dev/null || exit 23
+            typeset -f _zsh_autosuggest_start >/dev/null || exit 24
+            typeset -f _zsh_highlight >/dev/null || exit 25
+            [[ "$GOENV_DISABLE_GOPATH" == "1" ]] || exit 26
+            [[ "$GOPATH" == "$HOME/go" ]] || exit 27
+            command -v goenv >/dev/null || exit 28
+            echo "FULL_ZSH_OK"
+          '
+
+          # 3. Vim runtime verification (5 plugins + onehalfdark + :HH + zero errors)
+          for p in nerdtree onehalf vim-commentary vim-airline fzf fzf.vim; do
+            [[ -d "$HOME/.vim/plugged/$p" ]] || { echo "Missing Vim plugin: $p"; exit 31; }
+          done
+          vim -Nu "$HOME/.vimrc" -es \
+            -c 'if get(g:, "colors_name", "") != "onehalfdark" | cquit 2 | endif' \
+            -c 'HH' \
+            -c 'if line("$") < 50 || !empty(v:errmsg) | cquit 3 | endif' \
+            -c 'qa!'
+          echo "FULL_VIM_OK"
+
+  test-curl-pipe:
+    name: Pipe Execution (cat install.sh | bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zsh and vim
+        run: sudo apt-get update && sudo apt-get install -y zsh vim
+
+      - name: Simulate curl | bash pipe execution with fresh HOME
+        run: |
+          TEST_HOME="$(mktemp -d)"
+          ln -sfn "$GITHUB_WORKSPACE" "$TEST_HOME/dotfiles"
+          cat install.sh | \
+            HOME="$TEST_HOME" \
+            DOTFILES_NONINTERACTIVE=1 \
+            DOTFILES_OPT_PULL=n \
+            DOTFILES_OPT_OMZ=n \
+            DOTFILES_OPT_ZSH_PLUGINS=n \
+            DOTFILES_OPT_ZSH_HOOK=y \
+            DOTFILES_OPT_VIM_HOOK=y \
+            DOTFILES_OPT_VIM_PLUGINS=n \
+            DOTFILES_OPT_AUTOJUMP=n \
+            DOTFILES_OPT_GOENV=n \
+            bash
+
+          grep -Fq 'dotfiles/zsh/common.zsh' "$TEST_HOME/.zshrc"
+          grep -Fq 'dotfiles/vim/common.vim' "$TEST_HOME/.vimrc"
+          rm -rf "$TEST_HOME"
+          echo "CURL_PIPE_OK"

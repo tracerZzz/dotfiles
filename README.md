@@ -153,17 +153,12 @@ source ~/.zshrc
 
 ## 可选模块：Go 环境（使用 `goenv` 管理版本）
 
-`zsh/common.zsh` 已内置 `goenv` 自动初始化（检测到 `~/.goenv` 或 `goenv` 命令时自动生效，未安装时零开销）。
+`zsh/common.zsh` 已内置 `goenv` 自动初始化（检测到 `~/.goenv` 或 `goenv` 命令时自动生效，未安装时零开销），采用 **跨版本共享 `GOPATH=$HOME/go`**（`GOENV_DISABLE_GOPATH=1`），避免切换 Go 版本时重复下载依赖与工具。
 
-### 1. 安装 `goenv`
-- **macOS**：
-  ```zsh
-  brew install goenv
-  ```
-- **Linux**：
-  ```zsh
-  git clone --depth=1 https://github.com/go-nv/goenv.git ~/.goenv
-  ```
+### 1. 安装 `goenv`（macOS & Linux 统一路径）
+```zsh
+git clone --depth=1 https://github.com/go-nv/goenv.git ~/.goenv
+```
 
 ### 2. 刷新 Shell 并安装指定 Go 版本
 ```zsh
@@ -173,7 +168,11 @@ goenv install <版本号>        # 例如：goenv install 1.24.0
 goenv global <版本号>         # 设为全局默认版本
 go version                   # 验证
 ```
-> 注意：公司或个人专属的 `GOPROXY`、`GOPRIVATE` 请写在宿主机自己的 `~/.zshrc` 中，不要提交到本仓库。
+- **国内网络可选设置代理**（保存在本机 `~/.config/go/env`，不污染仓库）：
+  ```zsh
+  go env -w GOPROXY=https://goproxy.cn,direct
+  ```
+- **注意**：公司专属的 `GOPRIVATE` / 私有 `GOPROXY` 请仅配置在宿主机本地，**严禁提交到本 Public 仓库**。
 
 ---
 
