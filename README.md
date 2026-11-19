@@ -9,11 +9,28 @@
 
 ---
 
+## 快速一键安装（macOS & Linux / 外网 VPS 通用，无需登录 GitHub）
+
+> 仓库已设为公开（Public）并严格脱敏，**任何新电脑或外网 VPS 都无需配置 SSH Key / 登录 GitHub**，直接运行交互式安装脚本即可（不会覆盖原有 `~/.zshrc` / `~/.vimrc`，所有可选项都会逐项询问 `y/n`）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tracerZzz/dotfiles/main/install.sh | bash
+```
+
+也可以先查看脚本内容再执行：
+```bash
+git clone https://github.com/tracerZzz/dotfiles.git ~/dotfiles
+bash ~/dotfiles/install.sh
+```
+
+---
+
 ## 目录结构
 
 ```text
 dotfiles/
-├── README.md                  # 本说明、依赖分层与 macOS / Linux 接入指南
+├── install.sh                 # 交互式非侵入安装脚本（支持 curl | bash 与本地运行）
+├── README.md                  # 本说明、依赖分层与手动接入指南
 ├── AGENTS.md                  # 写给 AI 的约束、前置检查与脱敏规范
 ├── zsh/
 │   ├── common.zsh             # 跨平台通用 Zsh 配置（自动区分 macOS/Linux，含 goenv 自动集成）
