@@ -119,6 +119,10 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+# Quick Shell & iTerm2 cheatsheet (pretty rendered)
+export DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+alias hh='python3 "$DOTFILES_DIR/scripts/vh.py" "$DOTFILES_DIR/cheatsheets/shell.md" | less -FRX'
+
 # User local binaries
 export PATH="$HOME/.local/bin:$PATH"
 

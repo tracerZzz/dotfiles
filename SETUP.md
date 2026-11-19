@@ -1,6 +1,6 @@
-# macOS 终端 & iTerm2 环境配置（Dotfiles）
+# macOS 终端、Vim & iTerm2 环境配置（Dotfiles）
 
-这份仓库保存了我的 macOS 终端（Zsh + Oh My Zsh + Powerlevel10k + iTerm2）通用配置，**已去除所有硬编码用户名与本机运行态数据**，可直接用于个人新 Mac 或公司电脑。
+这份仓库保存了我的 macOS 终端（Zsh + Oh My Zsh + Powerlevel10k + iTerm2 + Vim + 速查表）通用配置，**已去除所有硬编码用户名与本机运行态数据**，可直接用于个人新 Mac 或公司电脑。
 
 **换新电脑时，clone 本仓库到 `~/dotfiles`，然后让 AI 按本文档顺序执行即可一键复原。**
 
@@ -8,6 +8,7 @@
 
 ## 一、个人偏好摘要（写给 AI 看）
 
+### 终端与 Shell
 - **终端软件**：iTerm2
 - **配色方案**：`One Half Dark`（已备份在 `iterm2/One Half Dark.itermcolors` 和 `iterm2/com.googlecode.iterm2.plist`）
 - **窗口外观**：毛玻璃半透明背景（Transparency + Blur，已保存在 `com.googlecode.iterm2.plist`）
@@ -21,15 +22,28 @@
   - `zsh-autosuggestions`（灰色历史命令补全，按 `→` 上屏）
   - `zsh-syntax-highlighting`（实时命令语法高亮，须放插件列表最后）
 
+### Vim（终端看代码 & 轻编辑）
+- **定位**：轻量、秒开、零编译依赖；无插件环境下（如 SSH 服务器）也能零报错直接使用基础编辑体验
+- **插件管理**：`vim-plug`（仅保留 5 个轻量插件，不装重型补全或语言全家桶）：
+  - `preservim/nerdtree`（左侧目录树）
+  - `sonph/onehalf`（`onehalfdark` 配色 + 透明背景，与 iTerm2 保持一致）
+  - `tpope/vim-commentary`（`gcc` / `gc` 快速注释）
+  - `vim-airline/vim-airline`（底部状态栏）
+  - `junegunn/fzf` + `junegunn/fzf.vim`（模糊搜文件/内容）
+
+### 统一速查表（`hh`）
+- **Shell 终端里敲 `hh`**：通过 `scripts/vh.py` 彩色渲染 `cheatsheets/shell.md`（Zsh + 插件 + iTerm2）
+- **Vim 里敲 `:hh`（或 `\?`）**：右侧弹出只读窗口渲染 `cheatsheets/vim.md`（Vim 核心 + 按插件分类），按 `q` 关闭
+
 ---
 
 ## 二、公司电脑 / 跨机器恢复时的安全须知（必看）
 
-1. **绝不直接覆盖原有 `~/.zshrc`**：
+1. **绝不直接覆盖原有 `~/.zshrc` / `~/.vimrc`**：
    - 公司电脑的 `~/.zshrc` 通常包含内网代理、VPN/SSO 脚本、nvm/pyenv/Java/Go 路径或内部 CLI 配置。
-   - **恢复前必须先备份**：`cp ~/.zshrc ~/.zshrc.bak`，并将公司专属配置迁移到 **`~/.zshrc.local`**（`.zshrc` 末尾已自动加载 `~/.zshrc.local`，且该文件永不纳入 Git）。
+   - **恢复前必须先备份**：`cp ~/.zshrc ~/.zshrc.bak`（如有 `~/.vimrc` 同理），并将公司专属配置迁移到 **`~/.zshrc.local`** / **`~/.vimrc.local`**（配置文件末尾已自动加载，且永不纳入 Git）。
 2. **公司电脑用 `cp` 而不是软链接 `ln -sf`**：
-   - 防止公司脚本自动往 `~/.zshrc` 写入内部 Token / 内网地址后被意外提交到个人仓库（安全合规风险）。
+   - 防止公司脚本自动往配置文件写入内部 Token / 内网地址后被意外提交到个人仓库（安全合规风险）。
    - **不要在公司电脑直接 `git push` 回本仓库**，如确需同步通用配置，请先检查 `git diff` 确认无任何公司信息。
 3. **芯片架构自动兼容**：
    - `.zshrc` 已内置 Apple Silicon（`/opt/homebrew`）与 Intel（`/usr/local`）的 Homebrew 路径兼容。
@@ -49,7 +63,7 @@
   - 优先：`brew install autojump`
   - 无写权限或需源码编译时：克隆 `https://github.com/wting/autojump.git` 运行 `python3 install.py` 安装到 `~/.autojump`
 
-### 2. 安装 Powerlevel10k 主题与第三方插件
+### 2. 安装 Powerlevel10k 主题与 Zsh 第三方插件
 ```zsh
 # Powerlevel10k 主题
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
@@ -91,24 +105,43 @@ defaults write com.googlecode.iterm2 PrefsCustomFolder -string "$HOME/dotfiles/i
 defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder -bool true
 ```
 
+### 6. 恢复 Vim 配置与插件
+```zsh
+# 1) 先备份原有配置（如有）
+[[ -f ~/.vimrc ]] && cp ~/.vimrc ~/.vimrc.bak
+
+# 2) 安装 vim-plug 并复制 .vimrc
+curl -fLo ~/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+cp ~/dotfiles/.vimrc ~/.vimrc
+
+# 3) 安装全部 Vim 插件
+vim +PlugInstall +qall
+```
+> 如需在 Vim 中用 `\f`（`:Rg`）全局搜索文件内容，可顺手安装 `ripgrep`（`brew install ripgrep`）。
+
 ---
 
 ## 四、后续维护与脱敏规范（写给未来的自己和 AI）
 
-核心原则：**「公共偏好进仓库，本机 / 公司配置进 `~/.zshrc.local`」**。
+核心原则：**「公共偏好进仓库，本机 / 公司配置进 `~/.zshrc.local` 与 `~/.vimrc.local`」**。
 
-1. **平时不要轻易动仓库**：
-   - 新装工具、代理、API Key、公司内网配置一律放进 **`~/.zshrc.local`**（永不提交 Git）。
-   - 仅当修改了**跨电脑都想要的通用偏好**（如配色、透明度、Zsh 插件、`p10k` 样式）时才同步到本仓库。
-2. **提交前必做脱敏检查**（让 AI 同步时也要严格遵守）：
-   - **禁止硬编码用户名路径**：检查 `.zshrc` 及其他文件，绝不出现 `/Users/<用户名>`，统一使用 `$HOME` 或 `~`。
+1. **插件与速查表联动规则（AI 必须自动执行）**：
+   - 每次在 Zsh 或 Vim 中**新增、卸载或修改插件 / 快捷键**时，AI **必须自动同步更新**对应的速查表：
+     - Zsh / iTerm2 变更 → 更新 `cheatsheets/shell.md`
+     - Vim 变更 → 更新 `cheatsheets/vim.md`
+   - 保持按插件分类、只放核心高频快捷键；卸载插件时同步移除对应条目，控制在一两屏内便于查阅。
+2. **平时不要轻易动仓库**：
+   - 新装工具、代理、API Key、公司内网配置一律放进 **`~/.zshrc.local`** / **`~/.vimrc.local`**（永不提交 Git）。
+   - 仅当修改了**跨电脑都想要的通用偏好**（如配色、透明度、插件、`p10k` 样式、速查表）时才同步到本仓库。
+3. **提交前必做脱敏检查**（让 AI 同步时也要严格遵守）：
+   - **禁止硬编码用户名路径**：检查所有文件，绝不出现 `/Users/<用户名>`，统一使用 `$HOME`、`~` 或 `$DOTFILES_DIR`。
    - **iTerm2 `com.googlecode.iterm2.plist` 脱敏**：iTerm2 每次退出可能会重新写入运行态数据。更新 plist 前，务必将 `Working Directory` 设为 `~`，并删除以下前缀的机器脏字段：`NoSync*`、`NSNav*`、`NSWindow Frame*`、`NSSplitView*`、`NSToolbar*`、`SU*`。
    - **禁止混入敏感信息**：用 `git diff` 确认无任何 API Key、Token、密码、内网地址、主机名或公司信息。
-3. **公司电脑红线**：
+4. **公司电脑红线**：
    - 永远不要在公司电脑直接 `git push` 回本仓库；公司电脑使用 `cp` 复制配置，并将 iTerm2 自定义文件夹保存模式设为 `Manually`。
-4. **个人电脑同步示例**：
+5. **个人电脑同步示例**：
    ```zsh
    cp ~/.p10k.zsh ~/dotfiles/.p10k.zsh
-   # 如需同步 .zshrc 或 iterm2 plist，请先按第 2 条完成脱敏
+   # 如需同步 .zshrc / .vimrc / iterm2 plist，请先按第 3 条完成脱敏
    cd ~/dotfiles && git diff && git add -A && git commit -m "Update dotfiles" && git push
    ```
