@@ -27,8 +27,11 @@ _WARNINGS=()
 cleanup() {
   local d
   for d in "${_TMP_DIRS[@]:-}"; do
-    [[ -n "$d" && -d "$d" ]] && rm -rf "$d"
+    if [[ -n "$d" && -d "$d" ]]; then
+      rm -rf "$d" || true
+    fi
   done
+  return 0
 }
 trap cleanup EXIT INT TERM
 
