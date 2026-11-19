@@ -93,9 +93,22 @@ defaults write com.googlecode.iterm2 LoadPrefsFromCustomFolder -bool true
 
 ---
 
-## 四、平时更新备份（仅限个人电脑）
-```zsh
-cp ~/.p10k.zsh ~/dotfiles/.p10k.zsh
-# 如需同步 .zshrc，请检查确认无硬编码用户名或密钥
-cd ~/dotfiles && git diff && git add -A && git commit -m "Update dotfiles" && git push
-```
+## 四、后续维护与脱敏规范（写给未来的自己和 AI）
+
+核心原则：**「公共偏好进仓库，本机 / 公司配置进 `~/.zshrc.local`」**。
+
+1. **平时不要轻易动仓库**：
+   - 新装工具、代理、API Key、公司内网配置一律放进 **`~/.zshrc.local`**（永不提交 Git）。
+   - 仅当修改了**跨电脑都想要的通用偏好**（如配色、透明度、Zsh 插件、`p10k` 样式）时才同步到本仓库。
+2. **提交前必做脱敏检查**（让 AI 同步时也要严格遵守）：
+   - **禁止硬编码用户名路径**：检查 `.zshrc` 及其他文件，绝不出现 `/Users/<用户名>`，统一使用 `$HOME` 或 `~`。
+   - **iTerm2 `com.googlecode.iterm2.plist` 脱敏**：iTerm2 每次退出可能会重新写入运行态数据。更新 plist 前，务必将 `Working Directory` 设为 `~`，并删除以下前缀的机器脏字段：`NoSync*`、`NSNav*`、`NSWindow Frame*`、`NSSplitView*`、`NSToolbar*`、`SU*`。
+   - **禁止混入敏感信息**：用 `git diff` 确认无任何 API Key、Token、密码、内网地址、主机名或公司信息。
+3. **公司电脑红线**：
+   - 永远不要在公司电脑直接 `git push` 回本仓库；公司电脑使用 `cp` 复制配置，并将 iTerm2 自定义文件夹保存模式设为 `Manually`。
+4. **个人电脑同步示例**：
+   ```zsh
+   cp ~/.p10k.zsh ~/dotfiles/.p10k.zsh
+   # 如需同步 .zshrc 或 iterm2 plist，请先按第 2 条完成脱敏
+   cd ~/dotfiles && git diff && git add -A && git commit -m "Update dotfiles" && git push
+   ```
