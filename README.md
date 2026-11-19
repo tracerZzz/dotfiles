@@ -38,6 +38,7 @@ dotfiles/
 ├── vim/
 │   └── common.vim             # 跨平台轻量 Vim 配置（5 插件 + 透明配色 + :hh 速查）
 ├── macos/
+│   ├── Brewfile               # 仅 macOS：常用软件清单（含按系统版本自动选 clash-verge-rev / sfm）
 │   └── iterm2/                # 仅 macOS：iTerm2 脱敏偏好与 One Half Dark 配色
 ├── cheatsheets/
 │   ├── shell.md               # Shell & iTerm2 速查表（终端敲 hh）
@@ -119,6 +120,12 @@ vim +PlugInstall +qall
 ### 4. 导入 iTerm2 偏好（配色 + 字体 + 毛玻璃透明）
 - 打开 iTerm2 → `Settings (⌘,)` → `General` → `Settings`（或 `Preferences`）
 - 勾选 **`Load settings from a custom folder or URL`**，指向 **`~/dotfiles/macos/iterm2`**，保存方式选 **`Manually`**，重启 iTerm2 即生效。
+
+### 5. 可选：按清单批量安装常用 macOS 软件（`Brewfile`）
+`macos/Brewfile` 独立于 `install.sh`，按需手动执行，会自动根据系统版本选择对应软件（macOS 12 装 `clash-verge-rev`，macOS 13+ 装 `sfm`）：
+```zsh
+brew bundle --file=~/dotfiles/macos/Brewfile
+```
 
 ---
 

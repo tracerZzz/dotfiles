@@ -1,0 +1,24 @@
+# ============================================================================
+# macOS Software Bundle (Declarative, opt-in — not run automatically by install.sh)
+# Usage:
+#   brew bundle --file=~/dotfiles/macos/Brewfile
+# ============================================================================
+
+# Terminal & Nerd Font
+cask "iterm2"
+cask "font-meslo-lg-nerd-font"
+
+# Proxy GUI (auto-selected by macOS major version)
+macos_major = `sw_vers -productVersion`.strip.split(".").first.to_i
+if macos_major <= 12
+  # macOS 12 (Monterey)
+  cask "clash-verge-rev"
+else
+  # Newer macOS -> sing-box (SFM)
+  cask "sfm"
+end
+
+# Optional CLI tools (uncomment as needed)
+# brew "ripgrep"
+# brew "jq"
+# brew "tree"
