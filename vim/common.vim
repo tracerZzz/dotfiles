@@ -72,7 +72,9 @@ set backspace=indent,eol,start  " Normal backspace behavior
 set autoread                    " Auto reload file when modified externally
 set noswapfile                  " Avoid cluttering directories with .swp files
 set mouse=a                     " Enable mouse scrolling/selection
-set clipboard=unnamed           " Share clipboard with macOS system clipboard
+if has('clipboard')
+  set clipboard=unnamed         " Share clipboard with system clipboard when supported
+endif
 
 " Search
 set incsearch                   " Incremental search preview

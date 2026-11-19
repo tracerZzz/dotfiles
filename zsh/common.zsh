@@ -1,5 +1,5 @@
 # ============================================================================
-# Portable Zsh Common Config (managed in ~/dotfiles)
+# Portable Zsh Common Config (macOS & Linux, managed in ~/dotfiles)
 # Usage: Append this single line to any machine's ~/.zshrc:
 #   [[ -f "$HOME/dotfiles/zsh/common.zsh" ]] && source "$HOME/dotfiles/zsh/common.zsh"
 # ============================================================================
@@ -7,15 +7,30 @@
 # Resolve dotfiles root dynamically (no hardcoded username or directory)
 export DOTFILES_DIR="${DOTFILES_DIR:-${${(%):-%x}:A:h:h}}"
 
-# Homebrew compatibility (Apple Silicon & Intel)
-if [[ -x /opt/homebrew/bin/brew ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+# Helper to prepend directory to PATH only if it exists and isn't already present
+_dotfiles_add_path() {
+  [[ -d "$1" && ":$PATH:" != *":$1:"* ]] && export PATH="$1:$PATH"
+}
 
-# User local binaries (avoid duplicate PATH entries)
-if [[ -d "$HOME/.local/bin" && ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-  export PATH="$HOME/.local/bin:$PATH"
-fi
+# OS-specific environment setup
+case "$(uname -s)" in
+  Darwin)
+    # Homebrew compatibility (Apple Silicon & Intel)
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+    ;;
+  Linux)
+    # Standard official Go tarball path on Linux
+    _dotfiles_add_path "/usr/local/go/bin"
+    ;;
+esac
+
+# User local binaries & Go user binaries (auto-enabled when present)
+_dotfiles_add_path "$HOME/.local/bin"
+_dotfiles_add_path "$HOME/go/bin"
+
+unset -f _dotfiles_add_path
 
 # Quick Shell & iTerm2 cheatsheet (pretty rendered)
 alias hh='python3 "$DOTFILES_DIR/scripts/vh.py" "$DOTFILES_DIR/cheatsheets/shell.md" | less -FRX'

@@ -26,8 +26,8 @@
 | `cd -` | 在最近两个目录之间一键来回切换 |
 | `!!` | 重复执行上一条命令（如 `sudo !!`） |
 | `!$` | 复用上一条命令的最后一个参数（如 `mkdir foo && cd !$`） |
-| `open .` | 用 Finder 打开当前目录 |
-| `pbcopy` / `pbpaste` | 管道写入 / 读出 macOS 剪贴板（如 `cat a.txt \| pbcopy`） |
+| `open .` | `[macOS]` 用 Finder 打开当前目录 |
+| `pbcopy` / `pbpaste` | `[macOS]` 管道写入 / 读出系统剪贴板（如 `cat a.txt \| pbcopy`） |
 | `hh` | 打开本 Shell & iTerm2 速查表 |
 
 ---
@@ -64,7 +64,7 @@
 
 ---
 
-## 四、iTerm2 窗口与分屏快捷键
+## 四、iTerm2 窗口与分屏快捷键（仅 macOS）
 
 | 快捷键 | 说明 |
 | :--- | :--- |
