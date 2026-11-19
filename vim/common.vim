@@ -1,3 +1,8 @@
+" ============================================================================
+" Portable Vim Common Config (managed in ~/dotfiles)
+" Usage: Append this single line to any machine's ~/.vimrc:
+"   if filereadable(expand('~/dotfiles/vim/common.vim')) | source ~/dotfiles/vim/common.vim | endif
+" ============================================================================
 set nocompatible
 
 " ============================================================================
@@ -96,7 +101,7 @@ nnoremap <C-p> :Files<CR>
 nnoremap <leader>f :Rg<CR>
 nnoremap <leader>b :Buffers<CR>
 
-" In-Vim Cheatsheet (press \? or run :VH, press q to close)
+" In-Vim Cheatsheet (run :hh or press \?, press q to close)
 function! ShowVimCheatsheet()
   let l:dir = empty($DOTFILES_DIR) ? expand('$HOME/dotfiles') : $DOTFILES_DIR
   let l:sheet = l:dir . '/cheatsheets/vim.md'
@@ -127,10 +132,3 @@ endfunction
 command! HH call ShowVimCheatsheet()
 cnoreabbrev <expr> hh (getcmdtype() == ':' && getcmdline() == 'hh') ? 'HH' : 'hh'
 nnoremap <leader>? :HH<CR>
-
-" ============================================================================
-" Machine-specific / Company-specific overrides (never committed to git)
-" ============================================================================
-if filereadable(expand('~/.vimrc.local'))
-  source ~/.vimrc.local
-endif
