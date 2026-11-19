@@ -62,9 +62,11 @@ if [[ -f "$_omz_custom/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
   [[ -f "$DOTFILES_DIR/zsh/p10k.zsh" ]] && source "$DOTFILES_DIR/zsh/p10k.zsh"
 fi
 
-# Built-in plugins (only load if not already active)
+# Built-in plugins (only load if installed and not already active)
 if ! (( $+functions[j] )) && [[ -f "$_omz_dir/plugins/autojump/autojump.plugin.zsh" ]]; then
-  source "$_omz_dir/plugins/autojump/autojump.plugin.zsh"
+  if (( $+commands[autojump] )) || [[ -d "$HOME/.autojump" ]] || [[ -f /usr/share/autojump/autojump.zsh ]]; then
+    source "$_omz_dir/plugins/autojump/autojump.plugin.zsh"
+  fi
 fi
 if ! (( $+functions[sudo-command-line] )) && [[ -f "$_omz_dir/plugins/sudo/sudo.plugin.zsh" ]]; then
   source "$_omz_dir/plugins/sudo/sudo.plugin.zsh"

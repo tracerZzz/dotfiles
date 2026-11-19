@@ -52,7 +52,10 @@ if has('autocmd')
   augroup END
 endif
 
-silent! colorscheme onehalfdark
+try
+  colorscheme onehalfdark
+catch
+endtry
 
 " Airline theme matching One Half Dark
 let g:airline_theme = 'onehalfdark'
