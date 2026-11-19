@@ -183,8 +183,30 @@ go version                   # 验证
 
 ---
 
-## 日常使用与同步
+## 日常使用与后续升级配置
 
+### 1. 日常速查
 - **Shell 速查**：终端敲 **`hh`**
 - **Vim 速查**：Vim 内敲 **`:hh`**（或 `\?`），按 `q` 关闭
-- **更新配置**：已 clone 仓库的机器执行 `git -C ~/dotfiles pull`；外网 VPS 从本地 Mac 重新 `rsync` 即可。
+
+### 2. 在任意机器拉取最新配置（零冲突）
+```zsh
+git -C ~/dotfiles pull
+source ~/.zshrc
+```
+*(如果 iTerm2 按建议设为 `Manually` 保存，`git pull` 永远不会产生 plist 冲突；拉取完重启 iTerm2 即生效。)*
+
+### 3. 升级已安装的第三方组件（按需执行）
+- **Oh My Zsh**：`omz update`
+- **Powerlevel10k 与 Zsh 插件**：
+  ```zsh
+  git -C "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" pull
+  git -C "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" pull
+  git -C "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" pull
+  ```
+- **Vim 插件**：在 Vim 中运行 `:PlugUpdate`
+- **`goenv`**：`git -C ~/.goenv pull`
+
+### 4. 修改个人偏好并同步回仓库（仅限个人主力机）
+- **改 Zsh / Vim / 速查表**：直接改 `~/dotfiles` 下的对应文件 → 跑 `git -C ~/dotfiles diff` 确认无硬编码用户名或敏感信息 → `git add -A && git commit && git push`（推送后 GitHub Actions 会自动在 Debian / Ubuntu / macOS 上回归测试）。
+- **改 iTerm2 配色/透明度**：在主力 Mac 的 iTerm2 设置中手动点一次 `Save Now`，再按 [AGENTS.md](./AGENTS.md) 中的脱敏清单清理 `NoSync*` 等脏字段后提交推送。

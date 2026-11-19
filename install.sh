@@ -352,8 +352,8 @@ main() {
   echo "1. 执行以下任一命令使 Zsh 配置生效: source ~/.zshrc 或 exec zsh"
   echo "2. 速查表: 终端敲 hh | Vim 内敲 :hh (或 \\?)"
   if [[ "$OS_NAME" == "Darwin" ]]; then
-    echo "3. [macOS] iTerm2 偏好导入: Settings -> General -> Settings -> 指向 ~/dotfiles/macos/iterm2 (保存方式选 Manually)"
-    echo "4. [macOS] 如未安装字体: brew install --cask font-meslo-lg-nerd-font"
+    echo "3. [macOS] 批量安装常用软件 (iTerm2/字体/代理客户端): brew bundle --file=~/dotfiles/macos/Brewfile"
+    echo "4. [macOS] iTerm2 偏好导入: Settings -> General -> Settings -> 指向 ~/dotfiles/macos/iterm2 (保存方式务必选 Manually，防多机冲突)"
   fi
   echo "提示: 如需在本机使用 Git 提交代码，请手动配置当前机器的身份信息 (git config --global user.name/email)。"
 }

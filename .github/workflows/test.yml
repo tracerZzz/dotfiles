@@ -21,6 +21,7 @@ jobs:
           bash -n install.sh
           shellcheck -S warning install.sh
           zsh -n zsh/common.zsh
+          ruby -c macos/Brewfile
           python3 -m py_compile scripts/vh.py
 
       - name: Validate cheatsheet renderer (ANSI & plain modes)
@@ -171,9 +172,14 @@ jobs:
           printf 'export COMPANY_PROXY="http://corp.example"\n' > "$HOME/.zshrc"
           printf '" COMPANY_VIM_SETTING\n' > "$HOME/.vimrc"
 
-          bash "$HOME/dotfiles/install.sh"
+          BASH_BIN="bash"
+          if [[ "$(uname -s)" == "Darwin" ]]; then
+            # Explicitly test Apple's built-in /bin/bash (Bash 3.2, same as macOS 12.7.6)
+            BASH_BIN="/bin/bash"
+          fi
+          "$BASH_BIN" "$HOME/dotfiles/install.sh"
           # Run twice to assert strict idempotency
-          bash "$HOME/dotfiles/install.sh"
+          "$BASH_BIN" "$HOME/dotfiles/install.sh"
 
           # 1. Host configs preserved & hooks strictly once
           grep -Fq 'COMPANY_PROXY="http://corp.example"' "$HOME/.zshrc"
