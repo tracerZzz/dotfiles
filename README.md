@@ -57,7 +57,7 @@ dotfiles/
 | **必备前置（仅 macOS）** | `Homebrew` | 需安装 | **不需要** | macOS 必备 / Linux 跳过 |
 | **按需前置** | `git` 命令行（无需登录账号） | Xcode CLT 自带 | `apt/yum install git` | 仅克隆公开插件时需要，**无需登录 GitHub** |
 | **可选（非必备）** | **GitHub 登录鉴权**（SSH Key / `gh`） | 仅常用开发机按需配置 | **外网 VPS 强烈建议不登录！** | 可选（不登录时用下方 `rsync` 同步） |
-| **可选（非必备）** | `autojump`、`ripgrep`、`vim-plug` | 按需安装 | 按需安装 | 可选（未装时自动优雅降级，不报错） |
+| **可选（非必备）** | `autojump`、`ripgrep`、`vim-plug`、`tmux` | 按需安装 | 按需安装（`tmux` 强烈推荐用于远程 SSH 保活） | 可选（未装时自动优雅降级，不报错） |
 | **可选（仅 macOS）** | `iTerm2`、`MesloLGS NF` 字体 | `brew install --cask` | **不需要** | 仅 macOS 可选 |
 | **可选（语言模块）** | `goenv` + Go | 按需安装 | 按需安装 | 仅需 Go 开发的机器安装 |
 

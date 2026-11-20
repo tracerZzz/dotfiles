@@ -11,6 +11,7 @@
 #   DOTFILES_OPT_VIM_HOOK=y       DOTFILES_OPT_VIM_PLUGINS=y
 #   DOTFILES_OPT_AUTOJUMP=n       DOTFILES_OPT_GOENV=n
 #   DOTFILES_OPT_GO_VERSION=""    DOTFILES_OPT_GOPROXY=n
+#   DOTFILES_OPT_TMUX=n
 # ============================================================================
 set -euo pipefail
 
@@ -336,7 +337,32 @@ main() {
     fi
   fi
 
-  # 9. Final summary
+  # 9. Optional (Linux only): tmux for SSH session persistence
+  if [[ "$OS_NAME" == "Linux" ]]; then
+    if command -v tmux >/dev/null 2>&1; then
+      ok "tmux 已安装"
+    elif ask_yes_no "是否安装 tmux（Linux/SSH 防断连保活，需包管理权限）?" "n" "${DOTFILES_OPT_TMUX:-}"; then
+      local pkg_prefix=""
+      if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+        pkg_prefix="sudo"
+      fi
+      if command -v apt-get >/dev/null 2>&1; then
+        if $pkg_prefix apt-get update && $pkg_prefix apt-get install -y tmux; then
+          ok "tmux 安装完成"
+        else
+          record_warn "tmux 安装失败，可稍后手动执行: sudo apt install -y tmux"
+        fi
+      elif command -v dnf >/dev/null 2>&1; then
+        $pkg_prefix dnf install -y tmux && ok "tmux 安装完成" || record_warn "tmux 安装失败，请手动安装"
+      elif command -v yum >/dev/null 2>&1; then
+        $pkg_prefix yum install -y tmux && ok "tmux 安装完成" || record_warn "tmux 安装失败，请手动安装"
+      else
+        record_warn "未识别的 Linux 包管理器，请手动安装 tmux"
+      fi
+    fi
+  fi
+
+  # 10. Final summary
   printf "\n%b=== 安装流程结束 ===%b\n" "$C_GREEN$C_BOLD" "$C_RESET"
   if (( ${#_WARNINGS[@]} > 0 )); then
     warn "本次有以下 ${#_WARNINGS[@]} 项警告/未完成项（不影响其余配置）："
@@ -349,7 +375,13 @@ main() {
   fi
 
   echo ""
-  echo "1. 执行以下任一命令使 Zsh 配置生效: source ~/.zshrc 或 exec zsh"
+  if [[ "$(basename "${SHELL:-}")" != "zsh" ]]; then
+    echo "1. 当前默认 Shell 不是 zsh（切勿在 bash 中执行 source ~/.zshrc），请按以下两步切换："
+    echo "   - 立即进入 zsh 体验: exec zsh"
+    echo "   - 永久设为默认登录 Shell: sudo chsh -s \"\$(which zsh)\" \"\$USER\""
+  else
+    echo "1. 执行以下任一命令使 Zsh 配置生效: source ~/.zshrc 或 exec zsh"
+  fi
   echo "2. 速查表: 终端敲 hh | Vim 内敲 :hh (或 \\?)"
   if [[ "$OS_NAME" == "Darwin" ]]; then
     echo "3. [macOS] 批量安装常用软件 (iTerm2/字体/代理客户端): brew bundle --file=~/dotfiles/macos/Brewfile"
