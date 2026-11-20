@@ -70,7 +70,6 @@ set tabstop=4                   " Visual width of a tab
 set shiftwidth=4                " Indentation width for >> and <<
 set softtabstop=4               " Tab key inserts 4 spaces
 set expandtab                   " Convert tabs to spaces
-set autoindent                  " Keep indentation on new lines
 set backspace=indent,eol,start  " Normal backspace behavior
 set autoread                    " Auto reload file when modified externally
 set noswapfile                  " Avoid cluttering directories with .swp files
