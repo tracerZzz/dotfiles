@@ -26,8 +26,9 @@ case "$(uname -s)" in
     ;;
 esac
 
-# User local binaries
+# User local binaries & optional local Node.js (auto-enabled only if present)
 _dotfiles_add_path "$HOME/.local/bin"
+_dotfiles_add_path "$HOME/.local/node/bin"
 
 # Optional goenv version manager (Option A: shared GOPATH=$HOME/go across versions)
 if [[ -d "$HOME/.goenv" ]]; then

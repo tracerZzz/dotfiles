@@ -11,7 +11,8 @@
 #   DOTFILES_OPT_VIM_HOOK=y       DOTFILES_OPT_VIM_PLUGINS=y
 #   DOTFILES_OPT_AUTOJUMP=n       DOTFILES_OPT_GOENV=n
 #   DOTFILES_OPT_GO_VERSION=""    DOTFILES_OPT_GOPROXY=n
-#   DOTFILES_OPT_TMUX=n
+#   DOTFILES_OPT_NODE=n           DOTFILES_OPT_NODE_VERSION=""
+#   DOTFILES_OPT_NPM_MIRROR=n     DOTFILES_OPT_TMUX=n
 # ============================================================================
 set -euo pipefail
 
@@ -337,7 +338,68 @@ main() {
     fi
   fi
 
-  # 9. Optional (Linux only): tmux for SSH session persistence
+  # 9. Optional: Node.js (official prebuilt tarball -> ~/.local/node, zero sudo)
+  if command -v node >/dev/null 2>&1 || [[ -x "$HOME/.local/node/bin/node" ]]; then
+    ok "Node.js 已安装"
+  elif ask_yes_no "是否安装 Node.js (官方 LTS 预编译包，免 sudo 安装到 ~/.local/node)?" "n" "${DOTFILES_OPT_NODE:-}"; then
+    local node_os="" node_arch=""
+    case "$OS_NAME" in
+      Darwin) node_os="darwin" ;;
+      Linux)  node_os="linux" ;;
+    esac
+    case "$(uname -m)" in
+      x86_64|amd64)  node_arch="x64" ;;
+      arm64|aarch64) node_arch="arm64" ;;
+      *)             node_arch="" ;;
+    esac
+
+    if [[ -z "$node_os" || -z "$node_arch" ]]; then
+      record_warn "暂不支持当前架构 ($(uname -m)) 自动下载 Node.js，请手动安装"
+    else
+      local latest_node=""
+      local node_index_tmp
+      node_index_tmp="$(make_tmp_dir)/node_index.json"
+      if curl_safe -fsSL "https://nodejs.org/dist/index.json" -o "$node_index_tmp" 2>/dev/null; then
+        latest_node="$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1], encoding="utf-8")); print(next((x["version"] for x in d if x.get("lts")), ""))' "$node_index_tmp" 2>/dev/null || true)"
+      fi
+      local target_node
+      target_node="$(ask_input "请输入要安装的 Node.js 版本号" "${latest_node:-v22.14.0}" "${DOTFILES_OPT_NODE_VERSION:-}")"
+      [[ -n "$target_node" && "$target_node" != v* ]] && target_node="v$target_node"
+
+      if [[ -n "$target_node" ]]; then
+        local node_tar="node-${target_node}-${node_os}-${node_arch}.tar.gz"
+        local node_url="https://nodejs.org/dist/${target_node}/${node_tar}"
+        local tmp_node
+        tmp_node="$(make_tmp_dir)"
+        info "正在下载 Node.js ${target_node} (${node_os}-${node_arch})..."
+        if curl --connect-timeout 15 --max-time 300 -fSL "$node_url" -o "$tmp_node/$node_tar"; then
+          if tar -xzf "$tmp_node/$node_tar" -C "$tmp_node"; then
+            local extracted_dir="$tmp_node/node-${target_node}-${node_os}-${node_arch}"
+            if [[ -x "$extracted_dir/bin/node" ]]; then
+              mkdir -p "$HOME/.local"
+              mv "$extracted_dir" "$HOME/.local/node"
+              ok "Node.js $("$HOME/.local/node/bin/node" -v) 已安装到 ~/.local/node"
+              if ask_yes_no "是否为本机 npm 切换到国内镜像源 (https://registry.npmmirror.com)? 海外 VPS / 公司内网请选 N" "n" "${DOTFILES_OPT_NPM_MIRROR:-}"; then
+                if PATH="$HOME/.local/node/bin:$PATH" "$HOME/.local/node/bin/npm" config set registry https://registry.npmmirror.com; then
+                  ok "已设置本机 npm 国内源（保存在 ~/.npmrc，不影响仓库）"
+                else
+                  record_warn "设置 npm 国内源失败，可稍后手动执行: npm config set registry https://registry.npmmirror.com"
+                fi
+              fi
+            else
+              record_warn "Node.js 解压目录异常，已自动清理临时文件"
+            fi
+          else
+            record_warn "Node.js 解压失败，已跳过"
+          fi
+        else
+          record_warn "Node.js ${target_node} 下载失败（$node_url），可稍后手动安装"
+        fi
+      fi
+    fi
+  fi
+
+  # 10. Optional (Linux only): tmux for SSH session persistence
   if [[ "$OS_NAME" == "Linux" ]]; then
     if command -v tmux >/dev/null 2>&1; then
       ok "tmux 已安装"
@@ -362,7 +424,7 @@ main() {
     fi
   fi
 
-  # 10. Final summary
+  # 11. Final summary
   printf "\n%b=== 安装流程结束 ===%b\n" "$C_GREEN$C_BOLD" "$C_RESET"
   if (( ${#_WARNINGS[@]} > 0 )); then
     warn "本次有以下 ${#_WARNINGS[@]} 项警告/未完成项（不影响其余配置）："
