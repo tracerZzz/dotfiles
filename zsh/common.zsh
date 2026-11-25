@@ -60,7 +60,16 @@ _omz_custom="${ZSH_CUSTOM:-$_omz_dir/custom}"
 # Powerlevel10k theme + portable style config
 if [[ -f "$_omz_custom/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
   source "$_omz_custom/themes/powerlevel10k/powerlevel10k.zsh-theme"
-  [[ -f "$DOTFILES_DIR/zsh/p10k.zsh" ]] && source "$DOTFILES_DIR/zsh/p10k.zsh"
+  if [[ -f "$DOTFILES_DIR/zsh/p10k.zsh" ]]; then
+    source "$DOTFILES_DIR/zsh/p10k.zsh"
+    # Fallback to clean ASCII icons in web terminals without Nerd Fonts
+    if [[ "${DOTFILES_ASCII_PROMPT:-}" == "1" ]]; then
+      typeset -g POWERLEVEL9K_MODE=ascii
+      typeset -g POWERLEVEL9K_VCS_BRANCH_ICON=''
+      typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(dir vcs newline prompt_char)
+      (( $+functions[p10k] )) && p10k reload
+    fi
+  fi
 fi
 
 # Built-in plugins (only load if installed and not already active)
