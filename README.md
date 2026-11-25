@@ -188,6 +188,7 @@ go version                   # 验证
 `zsh/common.zsh` 已自动检测并在目录存在时将 `$HOME/.local/node/bin` 加入 `PATH`（未安装时零开销）。
 
 - **一键安装**：运行 `install.sh` 并在 Node.js 选项按 `y`，自动识别 macOS（Intel / Apple Silicon）或 Linux（x64 / arm64），从官方源免 `sudo` 安装最新 LTS 预编译包至 `~/.local/node`（避免老版本 macOS 源码编译）。
+- **Linux ARM64 运行时依赖**：部分精简 Linux ARM64 云镜像（如 Ubuntu / Debian 镜像）未预装 `libatomic.so.1`，`install.sh` 会在安装/校验时自动检测缺失的共享库并给出修复提示（Debian/Ubuntu：`sudo apt-get update && sudo apt-get install -y libatomic1`；RHEL/Rocky：`sudo dnf install -y libatomic`）。
 - **国内网络可选切换 npm 镜像源**（安装完成后脚本会自动询问，配置保存在本机 `~/.npmrc`，不污染仓库）：
   ```zsh
   npm config set registry https://registry.npmmirror.com

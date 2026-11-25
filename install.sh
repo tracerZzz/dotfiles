@@ -12,7 +12,8 @@
 #   DOTFILES_OPT_AUTOJUMP=n       DOTFILES_OPT_GOENV=n
 #   DOTFILES_OPT_GO_VERSION=""    DOTFILES_OPT_GOPROXY=n
 #   DOTFILES_OPT_NODE=n           DOTFILES_OPT_NODE_VERSION=""
-#   DOTFILES_OPT_NPM_MIRROR=n     DOTFILES_OPT_TMUX=n
+#   DOTFILES_OPT_NODE_DEPS=n      DOTFILES_OPT_NPM_MIRROR=n
+#   DOTFILES_OPT_TMUX=n
 # ============================================================================
 set -euo pipefail
 
@@ -68,6 +69,88 @@ make_tmp_dir() {
 
 curl_safe() {
   curl --connect-timeout 15 --max-time 60 "$@"
+}
+
+run_with_priv() {
+  if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
+libatomic_install_hint() {
+  if command -v apt-get >/dev/null 2>&1; then
+    printf "sudo apt-get update && sudo apt-get install -y libatomic1"
+  elif command -v dnf >/dev/null 2>&1; then
+    printf "sudo dnf install -y libatomic"
+  elif command -v yum >/dev/null 2>&1; then
+    printf "sudo yum install -y libatomic"
+  elif command -v apk >/dev/null 2>&1; then
+    printf "sudo apk add libatomic"
+  elif command -v pacman >/dev/null 2>&1; then
+    printf "sudo pacman -S --noconfirm gcc-libs"
+  else
+    printf "请通过系统包管理器安装 libatomic（Debian/Ubuntu: libatomic1；RHEL/CentOS/Rocky: libatomic）"
+  fi
+}
+
+install_libatomic() {
+  if command -v apt-get >/dev/null 2>&1; then
+    run_with_priv apt-get update && run_with_priv apt-get install -y libatomic1
+  elif command -v dnf >/dev/null 2>&1; then
+    run_with_priv dnf install -y libatomic
+  elif command -v yum >/dev/null 2>&1; then
+    run_with_priv yum install -y libatomic
+  elif command -v apk >/dev/null 2>&1; then
+    run_with_priv apk add libatomic
+  elif command -v pacman >/dev/null 2>&1; then
+    run_with_priv pacman -S --noconfirm gcc-libs
+  else
+    return 1
+  fi
+}
+
+# Verify a node binary can actually execute; on Linux, detect missing shared libraries (e.g. libatomic.so.1 on ARM64)
+NODE_RUNTIME_VERSION=""
+check_node_runtime() {
+  local node_bin="$1"
+  local node_ver=""
+  local node_err=""
+  local missing_libs=""
+  NODE_RUNTIME_VERSION=""
+
+  if node_ver="$("$node_bin" -v 2>/dev/null)" && [[ -n "$node_ver" ]]; then
+    NODE_RUNTIME_VERSION="$node_ver"
+    return 0
+  fi
+
+  node_err="$("$node_bin" -v 2>&1 || true)"
+  if [[ "$OS_NAME" == "Linux" ]] && command -v ldd >/dev/null 2>&1; then
+    missing_libs="$( (ldd "$node_bin" 2>/dev/null || true) | awk '/=> not found/ {print $1}' | tr '\n' ' ' | sed 's/[[:space:]]*$//' )"
+  fi
+
+  if [[ "$OS_NAME" == "Linux" && ( "$missing_libs" == *"libatomic.so.1"* || "$node_err" == *"libatomic.so.1"* ) ]]; then
+    local hint
+    hint="$(libatomic_install_hint)"
+    warn "检测到 Node.js 运行缺少系统共享库 libatomic.so.1（Linux ARM64 精简镜像常见）"
+    if ask_yes_no "是否立即安装 libatomic 依赖以修复 Node.js（需包管理权限）?" "n" "${DOTFILES_OPT_NODE_DEPS:-}"; then
+      if install_libatomic && node_ver="$("$node_bin" -v 2>/dev/null)" && [[ -n "$node_ver" ]]; then
+        ok "libatomic 安装成功，Node.js ${node_ver} 已可正常使用"
+        NODE_RUNTIME_VERSION="$node_ver"
+        return 0
+      fi
+    fi
+    record_warn "Node.js 缺少依赖 libatomic.so.1 暂无法运行，请手动执行: ${hint}"
+    return 1
+  fi
+
+  if [[ -n "$missing_libs" ]]; then
+    record_warn "Node.js 缺少共享库 (${missing_libs}) 暂无法运行，请安装对应系统依赖后重试"
+  else
+    record_warn "Node.js 无法正常执行（${node_err:-未知错误}），请检查系统架构与动态库依赖"
+  fi
+  return 1
 }
 
 ask_yes_no() {
@@ -339,8 +422,17 @@ main() {
   fi
 
   # 9. Optional: Node.js (official prebuilt tarball -> ~/.local/node, zero sudo)
-  if command -v node >/dev/null 2>&1 || [[ -x "$HOME/.local/node/bin/node" ]]; then
-    ok "Node.js 已安装"
+  local existing_node=""
+  if [[ -x "$HOME/.local/node/bin/node" ]]; then
+    existing_node="$HOME/.local/node/bin/node"
+  elif command -v node >/dev/null 2>&1; then
+    existing_node="$(command -v node)"
+  fi
+
+  if [[ -n "$existing_node" ]]; then
+    if check_node_runtime "$existing_node"; then
+      ok "Node.js 已安装 (${NODE_RUNTIME_VERSION})"
+    fi
   elif ask_yes_no "是否安装 Node.js (官方 LTS 预编译包，免 sudo 安装到 ~/.local/node)?" "n" "${DOTFILES_OPT_NODE:-}"; then
     local node_os="" node_arch=""
     case "$OS_NAME" in
@@ -378,13 +470,17 @@ main() {
             if [[ -x "$extracted_dir/bin/node" ]]; then
               mkdir -p "$HOME/.local"
               mv "$extracted_dir" "$HOME/.local/node"
-              ok "Node.js $("$HOME/.local/node/bin/node" -v) 已安装到 ~/.local/node"
-              if ask_yes_no "是否为本机 npm 切换到国内镜像源 (https://registry.npmmirror.com)? 海外 VPS / 公司内网请选 N" "n" "${DOTFILES_OPT_NPM_MIRROR:-}"; then
-                if PATH="$HOME/.local/node/bin:$PATH" "$HOME/.local/node/bin/npm" config set registry https://registry.npmmirror.com; then
-                  ok "已设置本机 npm 国内源（保存在 ~/.npmrc，不影响仓库）"
-                else
-                  record_warn "设置 npm 国内源失败，可稍后手动执行: npm config set registry https://registry.npmmirror.com"
+              if check_node_runtime "$HOME/.local/node/bin/node"; then
+                ok "Node.js ${NODE_RUNTIME_VERSION} 已安装到 ~/.local/node"
+                if ask_yes_no "是否为本机 npm 切换到国内镜像源 (https://registry.npmmirror.com)? 海外 VPS / 公司内网请选 N" "n" "${DOTFILES_OPT_NPM_MIRROR:-}"; then
+                  if PATH="$HOME/.local/node/bin:$PATH" "$HOME/.local/node/bin/npm" config set registry https://registry.npmmirror.com; then
+                    ok "已设置本机 npm 国内源（保存在 ~/.npmrc，不影响仓库）"
+                  else
+                    record_warn "设置 npm 国内源失败，可稍后手动执行: npm config set registry https://registry.npmmirror.com"
+                  fi
                 fi
+              else
+                info "Node.js 文件已解压到 ~/.local/node，补齐上述系统依赖后即可直接使用（无需重新下载）"
               fi
             else
               record_warn "Node.js 解压目录异常，已自动清理临时文件"
